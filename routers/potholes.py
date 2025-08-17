@@ -2,10 +2,10 @@
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, Form
 from sqlalchemy.orm import Session
 from database import get_db
-from models import Pothole, User
+from model import Pothole, User
 from schemas import PotholeOut, PotholeAnalysisOut, PotholeCaptureOut
 from services.yolov5_service import detect_pothole, analyze_media_file
-from utils.security import get_current_user
+from util.security import get_current_user
 import shutil
 import os
 import uuid
@@ -91,6 +91,9 @@ async def analyze_media(
         # Analyze media for potholes
         analysis_result = analyze_media_file(file_path, file_type)
         
+        # Calculate severity based on count (same as your original logic)
+        severity = "low" if analysis_result["detection_count"] < 3 else "high"
+        
         logger.info(f"Analysis completed by user {current_user.id}: {analysis_result}")
         
         return {
@@ -101,6 +104,9 @@ async def analyze_media(
             "detection_count": analysis_result["detection_count"],
             "severity_levels": analysis_result["severity_levels"],
             "confidence_scores": analysis_result["confidence_scores"],
+            "severity": severity,  # Overall severity based on count
+            "original_image_url": f"/{ANALYSIS_DIR}/{unique_filename}",  # URL to original uploaded image
+            "labeled_image_url": analysis_result.get("labeled_image_url"),  # URL to YOLO-labeled image
             "has_location": False,
             "mode": "analysis"
         }
@@ -156,6 +162,9 @@ async def capture_and_detect(
         # Detect potholes in captured media
         detection_result = analyze_media_file(file_path, file_type)
         
+        # Calculate severity based on count (same as your original logic)
+        severity = "low" if detection_result["detection_count"] < 3 else "high"
+        
         # Only create database records if potholes are detected
         pothole_records = []
         if detection_result["potholes_detected"]:
@@ -171,8 +180,8 @@ async def capture_and_detect(
                     gps_accuracy=accuracy,
                     capture_timestamp=timestamp,
                     status="Pending",
-                    severity=detection["severity"],
-                    confidence=detection["confidence"],
+                    severity=severity,  # Use overall severity based on count
+                    confidence=detection.get("confidence", 0.0),
                     detection_index=i  # For multiple detections in same media
                 )
                 
@@ -200,6 +209,9 @@ async def capture_and_detect(
             "detection_count": detection_result["detection_count"],
             "severity_levels": detection_result["severity_levels"],
             "confidence_scores": detection_result["confidence_scores"],
+            "severity": severity,  # Overall severity based on count
+            "original_image_url": f"/{CAPTURE_DIR}/{unique_filename}",  # URL to original captured image
+            "labeled_image_url": detection_result.get("labeled_image_url"),  # URL to YOLO-labeled image
             "pothole_records": [{"id": p.id, "severity": p.severity} for p in pothole_records],
             "has_location": True,
             "mode": "live_capture"

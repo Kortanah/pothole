@@ -61,6 +61,9 @@ class PotholeAnalysisOut(BaseModel):
     detection_count: int
     severity_levels: list[str]
     confidence_scores: list[float]
+    severity: str  # Overall severity: "low" or "high" based on count
+    original_image_url: str  # URL to original uploaded image
+    labeled_image_url: Optional[str] = None  # URL to YOLO-labeled image
     has_location: bool = False
     mode: str = "analysis"
 
@@ -79,6 +82,9 @@ class PotholeCaptureOut(BaseModel):
     detection_count: int
     severity_levels: list[str]
     confidence_scores: list[float]
+    severity: str  # Overall severity: "low" or "high" based on count
+    original_image_url: str  # URL to original captured image
+    labeled_image_url: Optional[str] = None  # URL to YOLO-labeled image
     pothole_records: list[dict]  # Created database records
     has_location: bool = True
     mode: str = "live_capture"
